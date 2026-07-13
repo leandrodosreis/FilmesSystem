@@ -1,0 +1,174 @@
+openapi: 3.0.3
+info:
+  title: Projeto do SENAI Jandira - Controle de Filmes
+  description: |-
+   API destinada a controle de filmes 
+  termsOfService: http://swagger.io/terms/
+  contact:
+    email: leandrodosreisfilho@email.com
+  license:
+    name: Apache 2.0
+    url: http://www.apache.org/licenses/LICENSE-2.0.html
+  version: 1.0.4.26
+externalDocs:
+  description: Find out more about Swagger
+  url: http://swagger.io
+servers:
+  - url: http://
+paths:
+  /v1/senai/locadora/filme:
+    post:
+      tags:
+        - filme
+      summary: Adiciona um novo filme
+      description: Endpoint para enviar os dados do fillme a serem cadastrados
+      requestBody:
+        description: JSON contendo os dados do novo filme a ser inserido no sistema
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Filme'
+        required: true
+      responses:
+        '201':
+          description: Successful operation
+        '400':
+          description: Invalid input
+        '415':
+          description: Error Content-type
+        '500':
+          description: Error Internal Server
+    get:
+      tags:
+        - Filme
+      summary: Lista todos os Filmes
+      description: Listagem de todos os Filmes registrados no sistema
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Filme'          
+           
+        '404':
+          description: Not Found
+        '500':
+          description: Error Internal Server
+  /v1/senai/locadora/filme/{id}:
+    get:
+      tags:
+        - Filme
+      summary: Busca um Filme pelo ID
+      description: Retorna um Filme pelo ID
+      parameters:
+        - name: id
+          in: path
+          description: ID para realizar a busca do filme
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: successful operation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Filme'          
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Not found
+        '500': 
+          description: Error Internal Server
+    put:
+      tags:
+        - Filme
+      summary: Atualizar um filme pelo ID
+      description: Buscar e atualizar um filme pelo ID
+      parameters:
+        - name: id
+          in: path
+          description: ID para realizar a busca do Filme
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        description: Dados para atualizar um filme
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Filme'
+        required: true
+      responses:
+        '200':
+          description: Successful operation
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Not found
+        '415':
+          description: Invalid Content-Type
+        '500': Error Internal Server
+       
+    delete:
+      tags:
+        - Filme
+      summary: Excluir um filme pelo ID
+      description: Buscar e excluir um filme pelo ID
+      parameters:
+        - name: id
+          in: path
+          description: ID para buscar o filme
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        '200':
+          description: successful operation
+        '400':
+          description: Invalid ID supplied
+        '404':
+          description: Pet not found
+        '500':
+          description: Error Internal Server
+components:
+  schemas:
+    Filme:
+      required:
+        - nome
+        - sinopse
+        - data_lamcamento
+      type: object
+      properties:
+        id:
+          type: integer
+        nome:
+          type: string
+        sinopse:
+          type: string
+        data_lancamento:
+          type: string
+          format: date
+          example: "2026-01-01"
+        duracao: 
+          type: string
+        capa: 
+          type: string
+        valor: 
+          type: integer
+        avaliacao:
+          type: integer
+  requestBodies:
+    Aluno:
+      description: Objeto que deve ser enviado no Body das requisicoes
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Filme'
+    
