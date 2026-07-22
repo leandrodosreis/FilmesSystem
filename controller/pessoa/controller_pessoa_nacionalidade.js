@@ -5,367 +5,482 @@ Autor: Leandro
 Versão: 1.0
 */
 
+// Import do arquivo de mensagens padronizadas
 const configMessages = require('../modulo/configMessages.js')
 
+// Import do DAO responsável pelas operações da tabela pessoa_nacionalidade
 const pessoaNacionalidadeDAO = require('../../model/DAO/pessoa_nacionalidade/pessoa_nacionalidade.js')
 
-//Inserir novo filmegenero ao DB
+
+// Função responsável por criar um novo relacionamento entre pessoa e nacionalidade
 const inserirNovoPessoaNacionalidade = async function(pessoaNacionalidade){
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens padrão
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-            //Validando o argumento genero
-            let validar = await validarDados(pessoaNacionalidade)
 
-            //Se a validação apontar algo ela retorna oque ela apontou
-            if(validar){
-                return validar
+        // Valida os dados recebidos
+        let validar = await validarDados(pessoaNacionalidade)
 
-                //Se a validação não apontou então ela fará:
+        // Se houver erro de validação retorna o erro
+        if(validar){
+
+            return validar
+
+        }else{
+
+            // Insere o relacionamento no banco de dados
+            let result =
+                await pessoaNacionalidadeDAO.insertPessoaNacionalidade(
+                    pessoaNacionalidade
+                )
+
+            // Verifica se a inserção ocorreu com sucesso
+            if(result){
+
+                // Adiciona o ID gerado pelo banco
+                pessoaNacionalidade.id = result
+
+                // Monta a resposta de sucesso
+                customMessage.DEFAULT_MESSAGE.status =
+                    customMessage.SUCCESS_CREATED_ITEM.status
+
+                customMessage.DEFAULT_MESSAGE.status_code =
+                    customMessage.SUCCESS_CREATED_ITEM.status_code
+
+                customMessage.DEFAULT_MESSAGE.message =
+                    customMessage.SUCCESS_CREATED_ITEM.message
+
+                customMessage.DEFAULT_MESSAGE.response =
+                    pessoaNacionalidade
+
+                return customMessage.DEFAULT_MESSAGE
+
             }else{
 
-                //A tratativa e o insert do genero no DAO para o banco e o retorno sera guardado em result
-                let result = await pessoaNacionalidadeDAO.insertPessoaNacionalidade(pessoaNacionalidade)
-
-                //Se o retorno do result for o desejado:
-                if(result){
-
-                    //Cria o id no Json do filme e adiciona o id gerado no DAO
-                    pessoaNacionalidade.id = result
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_CREATED_ITEM.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_CREATED_ITEM.status_code
-                    customMessage.DEFAULT_MESSAGE.message = customMessage.SUCCESS_CREATED_ITEM.message
-                    customMessage.DEFAULT_MESSAGE.response = pessoaNacionalidade
-
-                    return customMessage.DEFAULT_MESSAGE //201
-                }else{
-                    return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
-                }
+                // Erro ocorrido na camada Model
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
+        }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
-    
+
 }
 
-//Lista os filmegeneros do DB
+
+// Função responsável por listar todos os relacionamentos pessoa_nacionalidade
 const listarPessoaNacionalidade = async function () {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        //Retorna a lista de generos do DB
-        let result = await pessoaNacionalidadeDAO.selectAllPessoaNacionalidade()
 
-        //Se o retorno for o esperado
+        // Busca todos os relacionamentos cadastrados
+        let result =
+            await pessoaNacionalidadeDAO.selectAllPessoaNacionalidade()
+
         if(result){
-            
-            //Validamos se o retorno (objeto json) nos trouxe algo e se ele trouxe:
+
             if(result.length > 0){
 
-                //mandamos mensagem de retorno
-                customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                customMessage.DEFAULT_MESSAGE.response.count = result.length
-                customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade = result
+                // Monta a resposta de sucesso
+                customMessage.DEFAULT_MESSAGE.status =
+                    customMessage.SUCCESS_RESPONSE.status
 
-                return customMessage.DEFAULT_MESSAGE //200
+                customMessage.DEFAULT_MESSAGE.status_code =
+                    customMessage.SUCCESS_RESPONSE.status_code
 
-                //Caso ele não retorne oque queremos então
+                customMessage.DEFAULT_MESSAGE.response.count =
+                    result.length
+
+                customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade =
+                    result
+
+                return customMessage.DEFAULT_MESSAGE
+
             }else{
-                return configMessages.ERROR_NOT_FOUND //404
+
+                // Nenhum relacionamento encontrado
+                return configMessages.ERROR_NOT_FOUND
             }
 
         }else{
-            return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+            // Erro ocorrido na Model
+            return customMessage.ERROR_INTERNAL_SERVER_MODEL
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 
 }
 
-//Busca um filmegenero por um id 
+
+// Função responsável por buscar um relacionamento pelo ID
 const buscarPessoaNacionalidade = async function (id) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Validamos o id
-        if(id == undefined || String(id).replaceAll(' ','') == "" || id == null || isNaN(id) || id <= 0 ){
-            customMessage.ERROR_BAD_REQUEST.field = "[ID] INVALIDO"
+        // Validação do ID
+        if(
+            id == undefined ||
+            String(id).replaceAll(' ','') == "" ||
+            id == null ||
+            isNaN(id) ||
+            id <= 0
+        ){
+
+            customMessage.ERROR_BAD_REQUEST.field =
+                "[ID] INVALIDO"
+
             return customMessage.ERROR_BAD_REQUEST
 
         }else{
 
-            //Se o id não cair na validação selecionamos ele no DB e atribuimos o retorno(genero) ao result
-            let result = await pessoaNacionalidadeDAO.selectByIdPessoaNacionalidade(id)
+            // Busca o relacionamento pelo ID
+            let result =
+                await pessoaNacionalidadeDAO.selectByIdPessoaNacionalidade(id)
 
-            //Se result for verdadeiro 
             if(result){
 
-                //validamos se ele trouxe o genero e retornamos mensagem com o conteudo 
                 if(result.length > 0){
 
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade = result
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_RESPONSE.status
+
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_RESPONSE.status_code
+
+                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade =
+                        result
 
                     return customMessage.DEFAULT_MESSAGE
 
                 }else{
 
-                    //Se o genero não existir
-                    return customMessage.ERROR_NOT_FOUND //404
-
+                    return customMessage.ERROR_NOT_FOUND
                 }
 
-            }else{ 
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+            }else{
+
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
         }
-        
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Busca o genero por um id de filme
+
+// Função responsável por buscar nacionalidades através do ID da pessoa
 const buscarNacionalidadeIdPessoa = async function (idPessoa) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Validamos o id
-        if(idPessoa == undefined || String(idPessoa).replaceAll(' ','') == "" || idPessoa == null || isNaN(idPessoa) || idPessoa <= 0 ){
-            customMessage.ERROR_BAD_REQUEST.field = "[ID_FILME] INVALIDO"
+        // Validação do ID da pessoa
+        if(
+            idPessoa == undefined ||
+            String(idPessoa).replaceAll(' ','') == "" ||
+            idPessoa == null ||
+            isNaN(idPessoa) ||
+            idPessoa <= 0
+        ){
+
+            customMessage.ERROR_BAD_REQUEST.field =
+                "[ID_FILME] INVALIDO"
+
             return customMessage.ERROR_BAD_REQUEST
 
         }else{
 
-            //Se o id não cair na validação selecionamos ele no DB e atribuimos o retorno(genero) ao result
-            let result = await pessoaNacionalidadeDAO.selectNacionalidadeByIdPessoa(idPessoa)
+            // Busca as nacionalidades vinculadas à pessoa
+            let result =
+                await pessoaNacionalidadeDAO.selectNacionalidadeByIdPessoa(
+                    idPessoa
+                )
 
-            //Se result for verdadeiro 
             if(result){
 
-                //validamos se ele trouxe o genero e retornamos mensagem com o conteudo 
                 if(result.length > 0){
 
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade = result
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_RESPONSE.status
+
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_RESPONSE.status_code
+
+                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade =
+                        result
 
                     return customMessage.DEFAULT_MESSAGE
 
                 }else{
 
-                    //Se o genero não existir
-                    return customMessage.ERROR_NOT_FOUND //404
-
+                    return customMessage.ERROR_NOT_FOUND
                 }
 
-            }else{ 
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+            }else{
+
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
         }
-        
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Busca o filme por um id de genero
+
+// Função responsável por buscar pessoas através do ID da nacionalidade
 const buscarPessoaIdNacionalidade = async function (idNacionalidade) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Validamos o id
-        if(idNacionalidade == undefined || String(idNacionalidade).replaceAll(' ','') == "" || idNacionalidade == null || isNaN(idNacionalidade) || idNacionalidade <= 0 ){
-            customMessage.ERROR_BAD_REQUEST.field = "[ID_GENERO] INVALIDO"
+        // Validação do ID da nacionalidade
+        if(
+            idNacionalidade == undefined ||
+            String(idNacionalidade).replaceAll(' ','') == "" ||
+            idNacionalidade == null ||
+            isNaN(idNacionalidade) ||
+            idNacionalidade <= 0
+        ){
+
+            customMessage.ERROR_BAD_REQUEST.field =
+                "[ID_GENERO] INVALIDO"
+
             return customMessage.ERROR_BAD_REQUEST
 
         }else{
 
-            //Se o id não cair na validação selecionamos ele no DB e atribuimos o retorno(genero) ao result
-            let result = await pessoaNacionalidadeDAO.selectPessoaByIdNacionalidade(idNacionalidade)
+            // Busca as pessoas vinculadas à nacionalidade
+            let result =
+                await pessoaNacionalidadeDAO.selectPessoaByIdNacionalidade(
+                    idNacionalidade
+                )
 
-            //Se result for verdadeiro 
             if(result){
 
-                //validamos se ele trouxe o genero e retornamos mensagem com o conteudo 
                 if(result.length > 0){
 
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade = result
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_RESPONSE.status
+
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_RESPONSE.status_code
+
+                    customMessage.DEFAULT_MESSAGE.response.pessoa_nacionalidade =
+                        result
 
                     return customMessage.DEFAULT_MESSAGE
 
                 }else{
 
-                    //Se o genero não existir
-                    return customMessage.ERROR_NOT_FOUND //404
-
+                    return customMessage.ERROR_NOT_FOUND
                 }
 
-            }else{ 
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+            }else{
+
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
         }
-        
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Atualizar um filmegenero
+
+// Função responsável por atualizar um relacionamento pessoa_nacionalidade
 const atualizarPessoaNacionalidade = async function (pessoaNacionalidade, id) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
-    try {      
-            //Utilizamos a função de buscar genero pelo ID para referenciar o genero especifico que vamos mudar
-            let resultBuscarId = await buscarPessoaNacionalidade(id)
+    try {
 
-            //Se o BuscarGenero nos retornar status true
-            if(resultBuscarId.status){
+        // Verifica se o relacionamento existe
+        let resultBuscarId =
+            await buscarPessoaNacionalidade(id)
 
-                //Validamos os dados que serão inseridos no DB
-                let validar = await validarDados(pessoaNacionalidade)
+        if(resultBuscarId.status){
 
-                //Se ele não cair na validação segue para
-                if(!validar){
-                    
-                    //Atribuição do ID no Retorno
-                    pessoaNacionalidade.id = Number(id)
+            // Valida os novos dados
+            let validar =
+                await validarDados(pessoaNacionalidade)
 
-                    //Atualizamos o desejado
-                    let result = await pessoaNacionalidadeDAO.updatePessoaNacionalidade(pessoaNacionalidade)
+            if(!validar){
 
-                    //Se conseguirmos atualizar retornamos mensagem de sucesso
-                    if(result){
+                // Adiciona o ID ao objeto
+                pessoaNacionalidade.id = Number(id)
 
-                        customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_UPDATED_ITEM.status
-                        customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_UPDATED_ITEM.status_code
-                        customMessage.DEFAULT_MESSAGE.message = customMessage.SUCCESS_UPDATED_ITEM.message
-                        customMessage.DEFAULT_MESSAGE.response = pessoaNacionalidade
+                // Atualiza o relacionamento
+                let result =
+                    await pessoaNacionalidadeDAO.updatePessoaNacionalidade(
+                        pessoaNacionalidade
+                    )
 
-                        return customMessage.DEFAULT_MESSAGE
-                    }else{
-                        return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
-                    }
+                if(result){
+
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_UPDATED_ITEM.status
+
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_UPDATED_ITEM.status_code
+
+                    customMessage.DEFAULT_MESSAGE.message =
+                        customMessage.SUCCESS_UPDATED_ITEM.message
+
+                    customMessage.DEFAULT_MESSAGE.response =
+                        pessoaNacionalidade
+
+                    return customMessage.DEFAULT_MESSAGE
 
                 }else{
-                    
-                    return validar //Se ele cair na validação o modulo da validação dira o erro
 
+                    return customMessage.ERROR_INTERNAL_SERVER_MODEL
                 }
 
             }else{
 
-                return resultBuscarGenero //Retorno da mensagem virá do buscar genero
-
+                return validar
             }
 
+        }else{
+
+            return resultBuscarGenero
+        }
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Excluir filmGenero 
+
+// Função responsável por excluir um relacionamento pelo ID
 const excluirPessoaNacionalidade = async function (id) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Chama a função de buscarGenero
-        let resultBuscarId = await buscarPessoaNacionalidade(id)
+        // Verifica se o relacionamento existe
+        let resultBuscarId =
+            await buscarPessoaNacionalidade(id)
 
-        //Se o status do genero for true
         if(resultBuscarId.status){
 
-            //Deletamos o genero do DB
-            let result = await pessoaNacionalidadeDAO.deletePessoaNacionalidade(id)
+            // Remove o relacionamento
+            let result =
+                await pessoaNacionalidadeDAO.deletePessoaNacionalidade(id)
 
-            //Se a exclusão ocorrer corretamente retornamos uma mensagem de sucesso
             if(result){
-                
+
                 return customMessage.SUCCESS_DELETED_ITEM
 
-                //Se a exclusãofalhar o erro foi na moedel
             }else{
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
 
         }else{
 
-            //Se algo der errado o responsavel (buscarGenero) nos dirá o erro
             return resultBuscarId
         }
-        
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Excluir a relação de generos com o filme 
+
+// Função responsável por excluir todas as nacionalidades vinculadas a uma pessoa
 const excluirNacionalidadeIdPessoa = async function (idPessoa) {
 
-    //Cria uma copia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        //Deletamos o genero do DB
-        let result = await pessoaNacionalidadeDAO.deleteNacionalidadeByIdPessoa(idPessoa)
 
-        //Se a exclusão ocorrer corretamente retornamos uma mensagem de sucesso
+        // Remove todos os relacionamentos da pessoa
+        let result =
+            await pessoaNacionalidadeDAO.deleteNacionalidadeByIdPessoa(
+                idPessoa
+            )
+
         if(result){
-            
+
             return customMessage.SUCCESS_DELETED_ITEM
 
-            //Se a exclusãofalhar o erro foi na moedel
         }else{
-            return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+            return customMessage.ERROR_INTERNAL_SERVER_MODEL
         }
-        
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Valida dados do filmegenero
+
+// Função responsável pela validação dos dados do relacionamento
 const validarDados = async function(pessoaNacionalidade){
 
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
-    if(pessoaNacionalidade.id_pessoa == undefined || pessoaNacionalidade.id_pessoa == "" || pessoaNacionalidade.id_pessoa == null || pessoaNacionalidade.id_pessoa.length <= 0 || isNaN(pessoaNacionalidade.id_pessoa)){
-        customMessage.ERROR_BAD_REQUEST.field = '[ID_FILME] INVALIDO'
-        return customMessage.ERROR_BAD_REQUEST 
-    }else if(pessoaNacionalidade.id_nacionalidade == undefined || pessoaNacionalidade.id_nacionalidade == "" || pessoaNacionalidade.id_nacionalidade == null || pessoaNacionalidade.id_nacionalidade.length <= 0 || isNaN(pessoaNacionalidade.id_nacionalidade)){
-        customMessage.ERROR_BAD_REQUEST.field = '[ID_FILME] INVALIDO'
-        return customMessage.ERROR_BAD_REQUEST 
+    // Validação do ID da pessoa
+    if(
+        pessoaNacionalidade.id_pessoa == undefined ||
+        pessoaNacionalidade.id_pessoa == "" ||
+        pessoaNacionalidade.id_pessoa == null ||
+        pessoaNacionalidade.id_pessoa.length <= 0 ||
+        isNaN(pessoaNacionalidade.id_pessoa)
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[ID_FILME] INVALIDO'
+
+        return customMessage.ERROR_BAD_REQUEST
+
+    // Validação do ID da nacionalidade
+    }else if(
+        pessoaNacionalidade.id_nacionalidade == undefined ||
+        pessoaNacionalidade.id_nacionalidade == "" ||
+        pessoaNacionalidade.id_nacionalidade == null ||
+        pessoaNacionalidade.id_nacionalidade.length <= 0 ||
+        isNaN(pessoaNacionalidade.id_nacionalidade)
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[ID_FILME] INVALIDO'
+
+        return customMessage.ERROR_BAD_REQUEST
+
     }else{
+
         return false
     }
 }
 
 
+// Exportação das funções da controller
 module.exports = {
     inserirNovoPessoaNacionalidade,
     listarPessoaNacionalidade,

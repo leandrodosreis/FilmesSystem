@@ -5,291 +5,433 @@ Autor: Leandro
 Versão: 1.0
 */
 
-//Import do arquivo de configurações de mensagens do projeto
+// Import do arquivo de configurações de mensagens do projeto
 const configMessages = require('../modulo/configMessages.js')
 
-//Import do arquivo do DAO para manipular os dados de filme no banco de dados
+// Import do arquivo DAO responsável pelas operações de pessoa no banco de dados
 const pessoaDAO = require('../../model/DAO/pessoa/pessoa.js')
 
-//Import das Controllers
+// Import das controllers responsáveis pelos relacionamentos
 const controllerSexo = require('../sexo/controller_sexo.js')
 const controllerPessoaNacionalidade = require('./controller_pessoa_nacionalidade.js')
 const controllerCargoPessoa = require('./controller_cargo_pessoa.js')
 
 
-// Função para inserir um novo filme 
+// Função responsável por inserir uma nova pessoa
 const inserirNovoPessoa = async function(pessoa, contentType){
 
-    //Cria uma copia dos JSON do arquivo de configuração de mensagens
+    // Cria uma cópia das mensagens padrão para evitar alterações no objeto original
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-            
+
+        // Verifica se o Content-Type da requisição é JSON
         if(String(contentType).toUpperCase() == 'APPLICATION/JSON'){
 
-            //Chama a função para validar a entrada de dados do filme
+            // Valida os dados recebidos
             let validar = await validarDados(pessoa)
 
-
-            //Retorna um json de erro caso algum atributo seja invalido, senão retorna um false(Nâo teve erro)
+            // Caso exista erro de validação retorna a mensagem correspondente
             if(validar){
-                return validar //400
-            }
-            else{
-                //Encaminha os dados do filme para o DAO inserir no banco de dados
-                let result = await pessoaDAO.insertPessoa(await tratarDados(pessoa))
 
-                if(result){ //201
-                    //Cria o id no Json do filme e adiciona o id gerado no DAO
+                return validar //400
+
+            }else{
+
+                // Realiza o tratamento dos dados e envia para o DAO efetuar o insert
+                let result = await pessoaDAO.insertPessoa(
+                    await tratarDados(pessoa)
+                )
+
+                // Verifica se a inserção ocorreu com sucesso
+                if(result){
+
+                    // Adiciona ao objeto o ID gerado pelo banco
                     pessoa.id = result
 
-                    //Manipulação de dados para inserir os Generos relacionados ao filme
-                    //Percorre o array de generos que chegara na requisição pelo objeto filme
+                    // RELACIONAMENTO PESSOA x NACIONALIDADE
+
+                    // Percorre todas as nacionalidades enviadas no objeto pessoa
                     for(itemNacionalidade of pessoa.nacionalidade){
+
+                        // Monta o objeto de relacionamento
                         let pessoaNacionalidade = {
-                                    'id_pessoa' : pessoa.id,
-                                    'id_nacionalidade' : itemNacionalidade.id
+                            'id_pessoa' : pessoa.id,
+                            'id_nacionalidade' : itemNacionalidade.id
                         }
 
-                        let resultPessoaNacionalidade = await controllerPessoaNacionalidade.inserirNovoPessoaNacionalidade(pessoaNacionalidade)
-                        
-                        //vALIDAÇÃO PARA VERIFICAR SE TODOS OS ITENS DE RELACIONAMENTO FORAM INSERIDOS
+                        // Insere o relacionamento na tabela intermediária
+                        let resultPessoaNacionalidade =
+                            await controllerPessoaNacionalidade.inserirNovoPessoaNacionalidade(
+                                pessoaNacionalidade
+                            )
+
+                        // Verifica se o relacionamento foi criado corretamente
                         if(!resultPessoaNacionalidade.status){
-                            return customMessage.SUCCESS_CREATED_ITEM_WARNING //201 COM ALERT
+
+                            // Pessoa criada, porém houve falha em algum relacionamento
+                            return customMessage.SUCCESS_CREATED_ITEM_WARNING
                         }
                     }
 
+                    // RELACIONAMENTO PESSOA x CARGO
+
+                    // Percorre todos os cargos enviados no objeto pessoa
                     for(itemCargo of pessoa.cargo){
 
+                        // Monta o objeto de relacionamento
                         let cargoPessoa = {
                             id_pessoa: pessoa.id,
                             id_cargo: itemCargo.id
                         }
 
+                        // Insere o relacionamento na tabela intermediária
                         let resultCargoPessoa =
-                            await controllerCargoPessoa.inserirNovoCargoPessoa(cargoPessoa)
+                            await controllerCargoPessoa.inserirNovoCargoPessoa(
+                                cargoPessoa
+                            )
 
+                        // Verifica se o relacionamento foi criado corretamente
                         if(!resultCargoPessoa.status){
+
+                            // Pessoa criada, porém houve falha em algum relacionamento
                             return customMessage.SUCCESS_CREATED_ITEM_WARNING
                         }
                     }
 
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_CREATED_ITEM.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_CREATED_ITEM.status_code
-                    customMessage.DEFAULT_MESSAGE.message = customMessage.SUCCESS_CREATED_ITEM.message
+                    // Monta a resposta de sucesso
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_CREATED_ITEM.status
+
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_CREATED_ITEM.status_code
+
+                    customMessage.DEFAULT_MESSAGE.message =
+                        customMessage.SUCCESS_CREATED_ITEM.message
+
                     customMessage.DEFAULT_MESSAGE.response = pessoa
-                
-                    return customMessage.DEFAULT_MESSAGE 
-                }else{ //erro 500 (Model)
+
+                    return customMessage.DEFAULT_MESSAGE
+
+                }else{
+
+                    // Erro ocorrido na camada Model
                     return customMessage.ERROR_INTERNAL_SERVER_MODEL
-                    // customMessage.DEFAULT_MESSAGE.status = customMessage.ERROR_INTERNAL_SERVER_MODEL.status
-                    // customMessage.DEFAULT_MESSAGE.status_code = customMessage.ERROR_INTERNAL_SERVER_MODEL.status_code
-                    // customMessage.DEFAULT_MESSAGE.message = customMessage.ERROR_INTERNAL_SERVER_MODEL.message
                 }
 
             }
+
         }else{
-            return customMessage.ERROR_CONTENT_TYPE //415
+
+            // Content-Type inválido
+            return customMessage.ERROR_CONTENT_TYPE
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500 (CONTROLLER)
+
+        // Erro inesperado na Controller
+        return console.log(error)
     }
 
 }
 
-// Função para retornar todos os filmes
+// Função responsável por retornar todas as pessoas cadastradas
 const listarPessoa = async function(){
     
-    //Cria uma copia dos JSON do arquivo de configuração de mensagens
+    // Cria uma cópia das mensagens padrão para evitar alterações no objeto original
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        //Chama a função do DAO para retornar a lista de filme do banco de dados
+
+        // Busca todas as pessoas cadastradas no banco de dados
         let result = await pessoaDAO.selectAllPessoa()
 
-        //Validação para verificar se o dao conseguiu processar o script no bd
+        // Verifica se o DAO conseguiu executar a consulta
         if(result){
 
-            //Validação para verificar se o conteudo do arrray tem dados de 
-            //retorno ou se esta vazio
+            // Verifica se existem registros retornados
             if(result.length > 0){
 
-                //Manipulação dos dados da Classificação
-                //Percorre o array de filmes 
-                for (pessoa of result){
-                    //Busca na controller da classificacao o ID referente a FK da classificacao
-                    let resultSexo = await controllerSexo.buscarSexo(pessoa.id_sexo)
+                // MANIPULAÇÃO DOS RELACIONAMENTOS
 
-                    //Se encontrar o ID
+                // Percorre todas as pessoas encontradas
+                for (pessoa of result){
+
+                    // RELACIONAMENTO COM SEXO
+
+                    // Busca os dados completos do sexo utilizando a FK
+                    let resultSexo = await controllerSexo.buscarSexo(
+                        pessoa.id_sexo
+                    )
+
+                    // Caso encontre o sexo relacionado
                     if(resultSexo.status){
-                        //Adicioa um atributo classificacao no JSON do filme e coloca o resultafo com os dados da classificacao
+
+                        // Adiciona o objeto sexo na resposta
                         pessoa.sexo = resultSexo.response.sexo
-                        //Apaga o id_classificacao do filme
+
+                        // Remove a FK da resposta final
                         delete pessoa.id_sexo
                     }
 
-                    //Manipulação de dados para retornar os generos relacionados aos filmes
-                    let resultNacionalidade = await controllerPessoaNacionalidade.buscarNacionalidadeIdPessoa(pessoa.id)
+                    // RELACIONAMENTO COM NACIONALIDADE
 
+                    // Busca todas as nacionalidades relacionadas à pessoa
+                    let resultNacionalidade =
+                        await controllerPessoaNacionalidade.buscarNacionalidadeIdPessoa(
+                            pessoa.id
+                        )
+
+                    // Caso existam nacionalidades relacionadas
                     if(resultNacionalidade.status){
-                        pessoa.nacionalidade = resultNacionalidade.response.pessoa_nacionalidade
+
+                        pessoa.nacionalidade =
+                            resultNacionalidade.response.pessoa_nacionalidade
                     }
 
-                    let resultCargo = await controllerCargoPessoa.buscarCargoIdPessoa(pessoa.id)
+                    // RELACIONAMENTO COM CARGO
 
+                    // Busca todos os cargos relacionados à pessoa
+                    let resultCargo =
+                        await controllerCargoPessoa.buscarCargoIdPessoa(
+                            pessoa.id
+                        )
+
+                    // Caso existam cargos relacionados
                     if(resultCargo.status){
-                        pessoa.cargo = resultCargo.response.cargo_pessoa
+
+                        pessoa.cargo =
+                            resultCargo.response.cargo_pessoa
                     }
 
                 }
 
-                customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                customMessage.DEFAULT_MESSAGE.response.count = result.length
-                customMessage.DEFAULT_MESSAGE.response.pessoa = result
+                // Monta a resposta de sucesso
+                customMessage.DEFAULT_MESSAGE.status =
+                    customMessage.SUCCESS_RESPONSE.status
 
-                return customMessage.DEFAULT_MESSAGE //200
+                customMessage.DEFAULT_MESSAGE.status_code =
+                    customMessage.SUCCESS_RESPONSE.status_code
+
+                customMessage.DEFAULT_MESSAGE.response.count =
+                    result.length
+
+                customMessage.DEFAULT_MESSAGE.response.pessoa =
+                    result
+
+                return customMessage.DEFAULT_MESSAGE
 
             }else{
-                return customMessage.ERROR_NOT_FOUND //404
+
+                // Nenhuma pessoa encontrada
+                return customMessage.ERROR_NOT_FOUND
             }
 
         }else{
-            return customMessage.ERROR_INTERNAL_SERVER_MODEL //500 (MODEL)
+
+            // Erro ocorrido na camada Model
+            return customMessage.ERROR_INTERNAL_SERVER_MODEL
         }
         
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500 (CONTROLLER)
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-// Função para retornar um filme filtrando pelo ID
+// Função responsável por buscar uma pessoa através do ID
 const buscarPessoa = async function(id){
 
-    //Cria uma copia dos JSON do arquivo de configuração de mensagens
+    // Cria uma cópia das mensagens padrão para evitar alterações no objeto original
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //validaçãopara garantir que o id seja um numero valido
-        if(id == undefined || String(id).replaceAll(' ', '') == '' || id == null || isNaN(id) || id <= 0){
+        // Validação do ID informado
+        if(
+            id == undefined ||
+            String(id).replaceAll(' ', '') == '' ||
+            id == null ||
+            isNaN(id) ||
+            id <= 0
+        ){
 
             customMessage.ERROR_BAD_REQUEST.field = '[ID] INVALIDO'
-            return customMessage.ERROR_BAD_REQUEST //400 
+
+            return customMessage.ERROR_BAD_REQUEST
 
         }else{
 
-            //Chama a função do DAO para pesquisar filme pelo id
+            // Busca a pessoa correspondente ao ID informado
             let result = await pessoaDAO.selectByIdPessoa(id)
 
-            //Validação para verificar se o DAO retornou dados ou um false
+            // Verifica se o DAO conseguiu executar a consulta
             if(result){
 
-                //Validação para verificar se o DAO tem algum dado no Array
+                // Verifica se a pessoa foi encontrada
                 if(result.length > 0){
 
-                    //Manipulação dos dados da Classificação
-                    //Percorre o array de filmes 
-                    for (pessoa of result){
-                        //Busca na controller da classificacao o ID referente a FK da classificacao
-                        let resultSexo = await controllerSexo.buscarSexo(pessoa.id_sexo)
+                    // MANIPULAÇÃO DOS RELACIONAMENTOS
 
-                        //Se encontrar o ID
+                    // Percorre o resultado encontrado
+                    for (pessoa of result){
+
+                        // RELACIONAMENTO COM SEXO
+
+                        // Busca os dados completos do sexo
+                        let resultSexo = await controllerSexo.buscarSexo(
+                            pessoa.id_sexo
+                        )
+
+                        // Caso encontre o sexo relacionado
                         if(resultSexo.status){
-                            //Adicioa um atributo classificacao no JSON do filme e coloca o resultafo com os dados da classificacao
+
+                            // Adiciona o objeto sexo ao JSON de retorno
                             pessoa.sexo = resultSexo.response.sexo
-                            //Apaga o id_classificacao do filme
+
+                            // Remove a FK da resposta
                             delete pessoa.id_sexo
                         }
 
-                         //Manipulação de dados para retornar os generos relacionados aos filmes
-                    let resultNacionalidade = await controllerPessoaNacionalidade.buscarNacionalidadeIdPessoa(pessoa.id)
+                        // RELACIONAMENTO COM NACIONALIDADE
 
-                    if(resultNacionalidade.status){
-                        pessoa.nacionalidade = resultNacionalidade.response.pessoa_nacionalidade
+                        let resultNacionalidade =
+                            await controllerPessoaNacionalidade.buscarNacionalidadeIdPessoa(
+                                pessoa.id
+                            )
+
+                        if(resultNacionalidade.status){
+
+                            pessoa.nacionalidade =
+                                resultNacionalidade.response.pessoa_nacionalidade
+                        }
+
+                        // RELACIONAMENTO COM CARGO
+
+                        let resultCargo =
+                            await controllerCargoPessoa.buscarCargoIdPessoa(
+                                pessoa.id
+                            )
+
+                        if(resultCargo.status){
+
+                            pessoa.cargo =
+                                resultCargo.response.cargo_pessoa
+                        }
+
                     }
 
-                    let resultCargo = await controllerCargoPessoa.buscarCargoIdPessoa(pessoa.id)
+                    // Monta a resposta de sucesso
+                    customMessage.DEFAULT_MESSAGE.status =
+                        customMessage.SUCCESS_RESPONSE.status
 
-                    if(resultCargo.status){
-                        pessoa.cargo = resultCargo.response.cargo_pessoa
-                    }
+                    customMessage.DEFAULT_MESSAGE.status_code =
+                        customMessage.SUCCESS_RESPONSE.status_code
 
-                    }
+                    customMessage.DEFAULT_MESSAGE.response.pessoa =
+                        result
 
-                    customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
-                    customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
-                    customMessage.DEFAULT_MESSAGE.response.pessoa = result
-
-                    return customMessage.DEFAULT_MESSAGE //200 
+                    return customMessage.DEFAULT_MESSAGE
 
                 }else{
-                    return customMessage.ERROR_NOT_FOUND //404
+
+                    // Pessoa não encontrada
+                    return customMessage.ERROR_NOT_FOUND
                 }
 
             }else{
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500 MODEL
+
+                // Erro ocorrido na camada Model
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
 
-            //Esse else não precisa de Erros pois os anteriores ja fazem isso
-            
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500 CONTROLLER
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-// Função para atualizar um filme
+// Função responsável por atualizar uma pessoa existente
 const atualizarPessoa = async function(pessoa, id, contentType){
+
+    // Cria uma cópia das mensagens padrão para evitar alterações no objeto original
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
         
-        //Validação para verificar se o conteudo do body é um JSON
+        // Verifica se o Content-Type da requisição é JSON
         if(String(contentType).toUpperCase() == 'APPLICATION/JSON'){
 
-            //Chama a função para buscar filme e validar se o id esta correto,se o id existe no bd, e se o filme existe
+            // Verifica se a pessoa existe e se o ID informado é válido
             let resultBuscarPessoa = await buscarPessoa(id)
 
             if(resultBuscarPessoa.status){
-                //Chama a função para validar os dados de alteração do filme
-                let validar = await validarDados(await tratarDados(pessoa))
+
+                // Valida os dados recebidos para atualização
+                let validar = await validarDados(
+                    await tratarDados(pessoa)
+                )
 
                 if(!validar){
 
-                    //Adiciona um atributo id no json de filme para enviar ao DAO um unico objeto
+                    // Adiciona o ID ao objeto para envio ao DAO
                     pessoa.id = Number(id)
 
-                    //Chama a função para atualizar o filme no bd
+                    // Solicita ao DAO a atualização dos dados da pessoa
                     let result = await pessoaDAO.updatePessoa(pessoa)
 
                     if(result){
-                        
-                        //Excluir as relações entre o filme e os generos (tabela de relação)
-                        let resultDeleteNacionalidade = await controllerPessoaNacionalidade.excluirNacionalidadeIdPessoa(pessoa.id)
 
-                        let resultDeleteCargo = await controllerCargoPessoa.excluirCargoIdPessoa(pessoa.id)
+                        // REMOÇÃO DOS RELACIONAMENTOS ANTIGOS
 
-                        if(resultDeleteNacionalidade.status && resultDeleteCargo.status){
+                        // Remove todos os relacionamentos de nacionalidade
+                        let resultDeleteNacionalidade =
+                            await controllerPessoaNacionalidade.excluirNacionalidadeIdPessoa(
+                                pessoa.id
+                            )
 
-                            //Manipulação de dados para inserir os Generos relacionados ao filme
-                            //Percorre o array de generos que chegara na requisição pelo objeto filme
+                        // Remove todos os relacionamentos de cargo
+                        let resultDeleteCargo =
+                            await controllerCargoPessoa.excluirCargoIdPessoa(
+                                pessoa.id
+                            )
+
+                        // Verifica se ambas as exclusões ocorreram corretamente
+                        if(
+                            resultDeleteNacionalidade.status &&
+                            resultDeleteCargo.status
+                        ){
+
+                            // REINSERÇÃO DOS RELACIONAMENTOS DE NACIONALIDADE
+
+                            // Percorre as nacionalidades enviadas na requisição
                             for(itemNacionalidade of pessoa.nacionalidade){
-                            let pessoaNacionalidade = {
-                                        'id_pessoa' : pessoa.id,
-                                        'id_nacionalidade' : itemNacionalidade.id
+
+                                let pessoaNacionalidade = {
+                                    'id_pessoa' : pessoa.id,
+                                    'id_nacionalidade' : itemNacionalidade.id
+                                }
+
+                                // Cria novamente o relacionamento
+                                let resultPessoaNacionalidade =
+                                    await controllerPessoaNacionalidade.inserirNovoPessoaNacionalidade(
+                                        pessoaNacionalidade
+                                    )
+
+                                // Verifica se o relacionamento foi criado
+                                if(!resultPessoaNacionalidade.status){
+
+                                    return customMessage.SUCCESS_CREATED_ITEM_WARNING
+                                }
                             }
 
-                            let resultPessoaNacionalidade = await controllerPessoaNacionalidade.inserirNovoPessoaNacionalidade(pessoaNacionalidade)
-                            
-                            //vALIDAÇÃO PARA VERIFICAR SE TODOS OS ITENS DE RELACIONAMENTO FORAM INSERIDOS
-                            if(!resultPessoaNacionalidade.status){
-                                return customMessage.SUCCESS_CREATED_ITEM_WARNING //201 COM ALERT
-                            }
-                            }
+                            // REINSERÇÃO DOS RELACIONAMENTOS DE CARGO
 
+                            // Percorre os cargos enviados na requisição
                             for(itemCargo of pessoa.cargo){
 
                                 let cargoPessoa = {
@@ -297,120 +439,198 @@ const atualizarPessoa = async function(pessoa, id, contentType){
                                     'id_cargo': itemCargo.id
                                 }
 
-                                let resultCargoPessoa = await controllerCargoPessoa.inserirNovoCargoPessoa(cargoPessoa)
+                                // Cria novamente o relacionamento
+                                let resultCargoPessoa =
+                                    await controllerCargoPessoa.inserirNovoCargoPessoa(
+                                        cargoPessoa
+                                    )
 
+                                // Verifica se o relacionamento foi criado
                                 if(!resultCargoPessoa.status){
+
                                     return customMessage.SUCCESS_CREATED_ITEM_WARNING
                                 }
                             }
 
-
                         }
 
-                        customMessage.DEFAULT_MESSAGE.status      = customMessage.SUCCESS_UPDATED_ITEM.status
-                        customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_UPDATED_ITEM.status_code
-                        customMessage.DEFAULT_MESSAGE.message     = customMessage.SUCCESS_UPDATED_ITEM.message
-                        customMessage.DEFAULT_MESSAGE.response    = pessoa
+                        // Monta a resposta de sucesso
+                        customMessage.DEFAULT_MESSAGE.status =
+                            customMessage.SUCCESS_UPDATED_ITEM.status
 
-                        return customMessage.DEFAULT_MESSAGE //200 atualizado
+                        customMessage.DEFAULT_MESSAGE.status_code =
+                            customMessage.SUCCESS_UPDATED_ITEM.status_code
+
+                        customMessage.DEFAULT_MESSAGE.message =
+                            customMessage.SUCCESS_UPDATED_ITEM.message
+
+                        customMessage.DEFAULT_MESSAGE.response =
+                            pessoa
+
+                        return customMessage.DEFAULT_MESSAGE
+
                     }else{
-                        return customMessage.ERROR_INTERNAL_SERVER_MODEL //500 model
+
+                        // Erro ocorrido na camada Model
+                        return customMessage.ERROR_INTERNAL_SERVER_MODEL
                     }
 
                 }else{
-                    return validar //400 validação dos campos do bd
+
+                    // Retorna o erro encontrado durante a validação
+                    return validar
                 }
 
             }else{
-                return resultBuscarPessoa //400(id invalido) ou 404(não encontrado) ou 500
+
+                // Retorna o erro informado pela função buscarPessoa
+                return resultBuscarPessoa
             }
 
         }else{
-            return customMessage.ERROR_CONTENT_TYPE //415
+
+            // Content-Type inválido
+            return customMessage.ERROR_CONTENT_TYPE
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500 (Controller)
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-// Função para excluir um filme
+// Função responsável por excluir uma pessoa
 const excluirPessoa = async function(id){
 
+    // Cria uma cópia das mensagens padrão
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
+        // Verifica se a pessoa existe antes da exclusão
         let resultBuscarPessoa = await buscarPessoa(id)
 
         if(resultBuscarPessoa.status){
 
+            // Solicita ao DAO a exclusão da pessoa
             let result = await pessoaDAO.deletePessoa(id)
+
+            // Exclusão realizada com sucesso
             if(result){
-                return customMessage.SUCCESS_DELETED_ITEM//204 ou 200
+
+                return customMessage.SUCCESS_DELETED_ITEM
 
             }else{
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500 Model
+
+                // Erro ocorrido na camada Model
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
 
         }else{
-            return resultBuscarPessoa //400 id invalido, 404 não encontrado ou 500 
+
+            // Retorna o erro informado pela função buscarPessoa
+            return resultBuscarPessoa
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500 CONTROLLER
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
+// Função responsável por validar os dados obrigatórios da pessoa
 const validarDados = async function(pessoa){
 
+    // Cria uma cópia das mensagens padrão
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
-    if(pessoa.nome == undefined || pessoa.nome == '' || pessoa.nome == null || pessoa.nome.length > 80){
+    if(
+        pessoa.nome == undefined ||
+        pessoa.nome == '' ||
+        pessoa.nome == null ||
+        pessoa.nome.length > 80
+    ){
+
         customMessage.ERROR_BAD_REQUEST.field = '[NOME] INVALIDO'
+
         return customMessage.ERROR_BAD_REQUEST
 
-    }else if(pessoa.data_nascimento == undefined || pessoa.data_nascimento == '' || pessoa.data_nascimento == null || pessoa.data_nascimento.length != 10){
-        customMessage.ERROR_BAD_REQUEST.field = '[DATA DE LANÇAMENTO] INVALIDO'
+    }else if(
+        pessoa.data_nascimento == undefined ||
+        pessoa.data_nascimento == '' ||
+        pessoa.data_nascimento == null ||
+        pessoa.data_nascimento.length != 10
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[DATA DE LANÇAMENTO] INVALIDO'
+
         return customMessage.ERROR_BAD_REQUEST
 
-    }else if(pessoa.filmografia == undefined || pessoa.filmografia == '' || pessoa.filmografia == null ){
-        customMessage.ERROR_BAD_REQUEST.field = '[DURAÇÃO] INVALIDO'
-        return customMessage.ERROR_BAD_REQUEST
-    
-    }else if(pessoa.biografia == undefined || pessoa.biografia == '' || pessoa.biografia == null ){
-        customMessage.ERROR_BAD_REQUEST.field = '[DURAÇÃO] INVALIDO'
+
+    }else if(
+        pessoa.filmografia == undefined ||
+        pessoa.filmografia == '' ||
+        pessoa.filmografia == null
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[DURAÇÃO] INVALIDO'
+
         return customMessage.ERROR_BAD_REQUEST
 
-    }else if(pessoa.foto == undefined || pessoa.foto == '' || pessoa.foto == null || pessoa.foto.length > 255){
-        customMessage.ERROR_BAD_REQUEST.field = '[CAPA] INVALIDO'
+
+    }else if(
+        pessoa.biografia == undefined ||
+        pessoa.biografia == '' ||
+        pessoa.biografia == null
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[DURAÇÃO] INVALIDO'
+
         return customMessage.ERROR_BAD_REQUEST
 
-    }else if(pessoa.id_sexo == undefined || isNaN(pessoa.id_sexo) || pessoa.id_sexo == null || pessoa.id_sexo == ""){
-        customMessage.ERROR_BAD_REQUEST.field = '[ID_CLASSIFICACAO] INVALIDO'
+
+    }else if(
+        pessoa.foto == undefined ||
+        pessoa.foto == '' ||
+        pessoa.foto == null ||
+        pessoa.foto.length > 255
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[CAPA] INVALIDO'
+
+        return customMessage.ERROR_BAD_REQUEST
+
+
+    }else if(
+        pessoa.id_sexo == undefined ||
+        isNaN(pessoa.id_sexo) ||
+        pessoa.id_sexo == null ||
+        pessoa.id_sexo == ""
+    ){
+
+        customMessage.ERROR_BAD_REQUEST.field =
+            '[ID_CLASSIFICACAO] INVALIDO'
+
         return customMessage.ERROR_BAD_REQUEST
 
     }else{
+
+        // Retorna false indicando que não houve erros de validação
         return false
     }
 
 }
 
-const tratarDados = async function(pessoa) {
-    //Tratamento para eliminar chegada de aspas como caracter invalido
-    pessoa.nome            = pessoa.nome.replaceAll("'", "")
-    pessoa.data_nascimento         = pessoa.data_nascimento.replaceAll("'", "")
-    pessoa.filmografia            = pessoa.filmografia.replaceAll("'", "")
-    pessoa.biografia = pessoa.biografia.replaceAll("'", "")
-    pessoa.foto         = pessoa.foto.replaceAll("'", "")
-
-    return pessoa
-} 
-
 module.exports = {
     inserirNovoPessoa,
     atualizarPessoa,
-    listarPessoa,
+    excluirPessoa,
     buscarPessoa,
-    excluirPessoa
+    listarPessoa
 }

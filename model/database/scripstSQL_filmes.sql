@@ -178,7 +178,7 @@ create table tbl_cargo_pessoa_filme(
 
 DELIMITER $
 
--- Ao deletar um gênero, remove os vínculos filme-gênero
+#Ao deletar um gênero, remove os vínculos filme-gênero
 create trigger tgrDeleteGenerosFilmes
     before delete on tbl_genero
         for each row
@@ -186,7 +186,7 @@ create trigger tgrDeleteGenerosFilmes
                 delete from tbl_filme_genero where id_genero = old.id;
             END$
 
--- Ao deletar um filme, remove seus vínculos de gênero e de equipe (cargo_pessoa_filme)
+#Ao deletar um filme, remove seus vínculos de gênero e de equipe (cargo_pessoa_filme)
 create trigger tgrDeleteFilmeDependencias
     before delete on tbl_filme
         for each row
@@ -195,7 +195,7 @@ create trigger tgrDeleteFilmeDependencias
                 delete from tbl_cargo_pessoa_filme where id_filme = old.id;
             END$
 
--- Ao deletar uma classificação, remove os filmes que a usam (cascateia pro trigger acima)
+#Ao deletar uma classificação, remove os filmes que a usam (cascateia pro trigger acima)
 create trigger tgrDeleteClassificacaoFilme
     before delete on tbl_classificacao
         for each row
@@ -203,7 +203,7 @@ create trigger tgrDeleteClassificacaoFilme
                 delete from tbl_filme where id_classificacao = old.id;
             END$
 
--- Ao deletar um sexo, remove as pessoas que o usam (cascateia pros triggers de pessoa)
+#Ao deletar um sexo, remove as pessoas que o usam (cascateia pros triggers de pessoa)
 create trigger tgrDeleteSexoPessoa
     before delete on tbl_sexo
         for each row
@@ -211,7 +211,7 @@ create trigger tgrDeleteSexoPessoa
                 delete from tbl_pessoa where id_sexo = old.id;
             END$
 
--- Ao deletar uma nacionalidade, remove os vínculos pessoa-nacionalidade
+#Ao deletar uma nacionalidade, remove os vínculos pessoa-nacionalidade
 create trigger tgrDeleteNacionalidadePessoaNacionalidade
     before delete on tbl_nacionalidade
         for each row
@@ -219,7 +219,7 @@ create trigger tgrDeleteNacionalidadePessoaNacionalidade
                 delete from tbl_pessoa_nacionalidade where id_nacionalidade = old.id;
             END$
 
--- Ao deletar uma pessoa, remove seus vínculos de nacionalidade e de cargo
+#Ao deletar uma pessoa, remove seus vínculos de nacionalidade e de cargo
 create trigger tgrDeletePessoaDependencias
     before delete on tbl_pessoa
         for each row
@@ -228,7 +228,7 @@ create trigger tgrDeletePessoaDependencias
                 delete from tbl_cargo_pessoa where id_pessoa = old.id;
             END$
 
--- Ao deletar um cargo, remove os vínculos cargo-pessoa (cascateia pro trigger abaixo)
+#Ao deletar um cargo, remove os vínculos cargo-pessoa (cascateia pro trigger abaixo)
 create trigger tgrDeleteCargoCargoPessoa
     before delete on tbl_cargo
         for each row
@@ -236,7 +236,7 @@ create trigger tgrDeleteCargoCargoPessoa
                 delete from tbl_cargo_pessoa where id_cargo = old.id;
             END$
 
--- Ao deletar um vínculo cargo-pessoa, remove os vínculos cargo_pessoa_filme
+#Ao deletar um vínculo cargo-pessoa, remove os vínculos cargo_pessoa_filme
 create trigger tgrDeleteCargoPessoaCargoPessoaFilme
     before delete on tbl_cargo_pessoa
         for each row
@@ -245,5 +245,3 @@ create trigger tgrDeleteCargoPessoaCargoPessoaFilme
             END$
 
 DELIMITER ;  
-
-show tables;

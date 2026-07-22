@@ -5,121 +5,146 @@ Autor: Leandro
 Versão: 1.0
 */
 
+// Import do arquivo de configurações de mensagens padrão da API
 const configMessages = require('../modulo/configMessages.js')
 
+// Import do DAO responsável pelas operações de nacionalidade no banco de dados
 const nacionalidadeDAO = require('../../model/DAO/nacionalidade/nacionalidade.js')
 
-//Inserir novo genero ao DB
+// Função para inserir uma nova nacionalidade
 const inserirNovoNacionalidade = async function(nacionalidade, contentType){
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
         
-        //Verificação do tipo de dados ou seja conferindo se é uma aplicação json (APLICATION/JSON) 
+        // Verifica se o Content-Type da requisição é JSON
         if(String(contentType).toUpperCase() == 'APPLICATION/JSON'){
     
-            //Validando o argumento genero
+            // Valida os dados recebidos
             let validar = await validarDados(nacionalidade)
 
-            //Se a validação apontar algo ela retorna oque ela apontou
+            // Caso exista erro de validação retorna a mensagem correspondente
             if(validar){
+
                 return validar
 
-                //Se a validação não apontou então ela fará:
             }else{
 
-                //A tratativa e o insert do genero no DAO para o banco e o retorno sera guardado em result
-                let result = await nacionalidadeDAO.insertNacionalidade( await tratarDados(nacionalidade))
+                // Realiza o tratamento dos dados e envia para o DAO efetuar o insert
+                let result = await nacionalidadeDAO.insertNacionalidade(
+                    await tratarDados(nacionalidade)
+                )
 
-                //Se o retorno do result for o desejado:
+                // Verifica se a inserção ocorreu com sucesso
                 if(result){
 
-                    //Cria o id no Json do filme e adiciona o id gerado no DAO
+                    // Adiciona ao objeto o ID gerado pelo banco
                     nacionalidade.id = result
+
+                    // Monta a resposta de sucesso
                     customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_CREATED_ITEM.status
                     customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_CREATED_ITEM.status_code
                     customMessage.DEFAULT_MESSAGE.message = customMessage.SUCCESS_CREATED_ITEM.message
                     customMessage.DEFAULT_MESSAGE.response = nacionalidade
-                    
 
-                    return customMessage.DEFAULT_MESSAGE //201
+                    return customMessage.DEFAULT_MESSAGE
+
                 }else{
-                    return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+                    // Erro ocorrido na camada Model
+                    return customMessage.ERROR_INTERNAL_SERVER_MODEL
                 }
             }
             
         }else{
-            return customMessage.ERROR_CONTENT_TYPE //415
+
+            // Content-Type inválido
+            return customMessage.ERROR_CONTENT_TYPE
         }
+
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        // Erro inesperado na Controller
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
     
 }
 
-//Lista os generos do DB
+// Função para listar todas as nacionalidades cadastradas
 const listarNacionalidade = async function () {
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
-        //Retorna a lista de generos do DB
+
+        // Busca todas as nacionalidades cadastradas no banco
         let result = await nacionalidadeDAO.selectAllNacionalidade()
 
-        //Se o retorno for o esperado
+        // Verifica se o DAO retornou dados
         if(result){
             
-            //Validamos se o retorno (objeto json) nos trouxe algo e se ele trouxe:
+            // Verifica se existem registros retornados
             if(result.length > 0){
 
-                //mandamos mensagem de retorno
+                // Monta a resposta de sucesso
                 customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
                 customMessage.DEFAULT_MESSAGE.status_code = customMessage.SUCCESS_RESPONSE.status_code
                 customMessage.DEFAULT_MESSAGE.response.count = result.length
                 customMessage.DEFAULT_MESSAGE.response.nacionalidade = result
 
-                return customMessage.DEFAULT_MESSAGE //200
+                return customMessage.DEFAULT_MESSAGE
 
-                //Caso ele não retorne oque queremos então
             }else{
-                return configMessages.ERROR_NOT_FOUND //404
+
+                // Nenhum registro encontrado
+                return configMessages.ERROR_NOT_FOUND
             }
 
         }else{
-            return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+            // Erro ocorrido na camada Model
+            return customMessage.ERROR_INTERNAL_SERVER_MODEL
         }
 
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 
 }
 
-//Busca o genero por um id 
+// Função para buscar uma nacionalidade pelo ID
 const buscarNacionalidade = async function (id) {
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Validamos o id
-        if(id == undefined || String(id).replaceAll(' ','') == "" || id == null || isNaN(id) || id <= 0 ){
+        // Valida se o ID informado é válido
+        if(
+            id == undefined ||
+            String(id).replaceAll(' ','') == "" ||
+            id == null ||
+            isNaN(id) ||
+            id <= 0
+        ){
+
             customMessage.ERROR_BAD_REQUEST.field = "[ID] INVALIDO"
             return customMessage.ERROR_BAD_REQUEST
 
         }else{
 
-            //Se o id não cair na validação selecionamos ele no DB e atribuimos o retorno(genero) ao result
+            // Busca a nacionalidade correspondente ao ID informado
             let result = await nacionalidadeDAO.selectByIdNacionalidade(id)
 
-            //Se result for verdadeiro 
+            // Verifica se o DAO retornou dados
             if(result){
 
-                //validamos se ele trouxe o genero e retornamos mensagem com o conteudo 
+                // Verifica se existe algum registro encontrado
                 if(result.length > 0){
 
                     customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_RESPONSE.status
@@ -130,51 +155,54 @@ const buscarNacionalidade = async function (id) {
 
                 }else{
 
-                    //Se o genero não existir
-                    return customMessage.ERROR_NOT_FOUND //404
+                    // Nacionalidade não encontrada
+                    return customMessage.ERROR_NOT_FOUND
 
                 }
 
-            }else{ 
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+            }else{
+
+                // Erro ocorrido na camada Model
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
         }
         
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Atualizar um genero
+// Função para atualizar uma nacionalidade existente
 const atualizarNacionalidade = async function (nacionalidade, id, contentType) {
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Verificação do tipo de dados ou seja conferindo se é uma aplicação json (APLICATION/JSON) 
+        // Verifica se o Content-Type da requisição é JSON
         if(String(contentType).toUpperCase() == 'APPLICATION/JSON'){
             
-            //Utilizamos a função de buscar genero pelo ID para referenciar o genero especifico que vamos mudar
+            // Verifica se a nacionalidade existe antes de atualizar
             let resultBuscarNacionalidade = await buscarNacionalidade(id)
 
-            //Se o BuscarGenero nos retornar status true
             if(resultBuscarNacionalidade.status){
 
-                //Validamos os dados que serão inseridos no DB
-                let validar = await validarDados(await tratarDados(nacionalidade))
+                // Valida os dados que serão atualizados
+                let validar = await validarDados(
+                    await tratarDados(nacionalidade)
+                )
 
-                //Se ele não cair na validação segue para
                 if(!validar){
                     
-                    //Atribuição do ID no Retorno
+                    // Adiciona o ID ao objeto que será enviado ao DAO
                     nacionalidade.id = Number(id)
 
-                    //Atualizamos o desejado
+                    // Solicita ao DAO a atualização do registro
                     let result = await nacionalidadeDAO.updateNacionalidade(nacionalidade)
 
-                    //Se conseguirmos atualizar retornamos mensagem de sucesso
+                    // Verifica se a atualização ocorreu com sucesso
                     if(result){
 
                         customMessage.DEFAULT_MESSAGE.status = customMessage.SUCCESS_UPDATED_ITEM.status
@@ -183,90 +211,111 @@ const atualizarNacionalidade = async function (nacionalidade, id, contentType) {
                         customMessage.DEFAULT_MESSAGE.response = nacionalidade
 
                         return customMessage.DEFAULT_MESSAGE
+
                     }else{
-                        return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+                        // Erro ocorrido na camada Model
+                        return customMessage.ERROR_INTERNAL_SERVER_MODEL
                     }
 
                 }else{
                     
-                    return validar //Se ele cair na validação o modulo da validação dira o erro
+                    // Retorna o erro identificado na validação
+                    return validar
 
                 }
 
             }else{
 
-                return resultBuscarNacionalidade//Retorno da mensagem virá do buscar genero
+                // Retorna o erro informado pela função buscarNacionalidade
+                return resultBuscarNacionalidade
 
             }
 
         }else{
-            return customMessage.ERROR_CONTENT_TYPE //415
+
+            // Content-Type inválido
+            return customMessage.ERROR_CONTENT_TYPE
         }
         
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Excluir Genero 
+// Função para excluir uma nacionalidade
 const excluirNacionalidade = async function (id) {
 
-    //Cria uma copia das mensagens de resposta
+    // Cria uma cópia das mensagens de resposta
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
     try {
 
-        //Chama a função de buscarGenero
+        // Verifica se a nacionalidade existe antes da exclusão
         let resultBuscarNacionalidade = await buscarNacionalidade(id)
 
-        //Se o status do genero for true
         if(resultBuscarNacionalidade.status){
 
-            //Deletamos o genero do DB
+            // Solicita ao DAO a exclusão do registro
             let result = await nacionalidadeDAO.deleteNacionalidade(id)
 
-            //Se a exclusão ocorrer corretamente retornamos uma mensagem de sucesso
+            // Exclusão realizada com sucesso
             if(result){
                 
                 return customMessage.SUCCESS_DELETED_ITEM
 
-                //Se a exclusãofalhar o erro foi na moedel
             }else{
-                return customMessage.ERROR_INTERNAL_SERVER_MODEL //500
+
+                // Erro ocorrido na camada Model
+                return customMessage.ERROR_INTERNAL_SERVER_MODEL
             }
 
         }else{
 
-            //Se algo der errado o responsavel (buscarGenero) nos dirá o erro
+            // Retorna o erro informado pela função buscarNacionalidade
             return resultBuscarNacionalidade
         }
         
     } catch (error) {
-        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER //500
+
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 }
 
-//Valida dados do genero
+// Função responsável por validar os dados obrigatórios da nacionalidade
 const validarDados = async function(nacionalidade){
 
     let customMessage = JSON.parse(JSON.stringify(configMessages))
 
-    if(nacionalidade.nome == undefined || nacionalidade.nome == "" || nacionalidade.nome == null || nacionalidade.nome.length > 50){
+    // Validação do nome da nacionalidade
+    if(
+        nacionalidade.nome == undefined ||
+        nacionalidade.nome == "" ||
+        nacionalidade.nome == null ||
+        nacionalidade.nome.length > 50
+    ){
+
         customMessage.ERROR_BAD_REQUEST.field = '[NOME] INVALIDO'
-        return customMessage.ERROR_BAD_REQUEST 
+        return customMessage.ERROR_BAD_REQUEST
+
     }else{
+
+        // Retorna false indicando que não houve erros de validação
         return false
     }
 }
 
-//trata aspas simples
+// Função responsável pelo tratamento dos dados recebidos
 const tratarDados = async function(nacionalidade) {
-    nacionalidade.nome            = nacionalidade.nome.replaceAll("'", "")
+
+    // Remove aspas simples para evitar caracteres indesejados
+    nacionalidade.nome = nacionalidade.nome.replaceAll("'", "")
 
     return nacionalidade
 } 
 
-
+// Exportação das funções da controller
 module.exports = {
     inserirNovoNacionalidade,
     buscarNacionalidade,
