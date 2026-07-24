@@ -130,7 +130,7 @@ const inserirNovoPessoa = async function(pessoa, contentType){
     } catch (error) {
 
         // Erro inesperado na Controller
-        return console.log(error)
+        return customMessage.ERROR_INTERNAL_SERVER_CONTROLLER
     }
 
 }
@@ -626,6 +626,17 @@ const validarDados = async function(pessoa){
     }
 
 }
+
+const tratarDados = async function(pessoa) {
+    //Tratamento para eliminar chegada de aspas como caracter invalido
+    pessoa.nome            = pessoa.nome.replaceAll("'", "")
+    pessoa.data_nascimento         = pessoa.data_nascimento.replaceAll("'", "")
+    pessoa.filmografia            = pessoa.filmografia.replaceAll("'", "")
+    pessoa.biografia = pessoa.biografia.replaceAll("'", "")
+    pessoa.foto         = pessoa.foto.replaceAll("'", "")
+
+    return pessoa
+} 
 
 module.exports = {
     inserirNovoPessoa,
